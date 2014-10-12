@@ -78,14 +78,14 @@ void *interrupt(void *param) {
 				RFControl::getRaw(&timings, &timings_size);
 				unsigned int buckets[8];
 				RFControl::compressTimings(buckets, timings, timings_size);
-				printf("RF receive ");
+				fprintf(stderr, "RF receive ");
 				for(unsigned int i=0; i < 8; i++) {
-				 	printf("%d ",buckets[i]);
+				 	fprintf(stderr, "%d ",buckets[i]);
 				}
 				for(unsigned int i=0; i < timings_size; i++) {
-				 	printf("%d", timings[i]);
+				 	fprintf(stderr, "%d", timings[i]);
 				}
-				printf("\n");
+				fprintf(stderr, "\n");
 				RFControl::continueReceiving();
 			}
 		} else {
@@ -98,18 +98,18 @@ char input[256];
 char delimiter[] = " ";
 
 void argument_error() {
-	printf("ERR argument_error\n");
+	fprintf(stderr, "ERR argument_error\n");
 }
 
 void ping_command() {
 	char *arg;
-	printf("PING");
+	fprintf(stderr, "PING");
 	arg = strtok(NULL, delimiter);
 
 	if (arg != NULL) {
-		printf(" %s", arg);
+		fprintf(stderr, " %s", arg);
 	}
-	printf("\n");
+	fprintf(stderr, "\n");
 }
 
 void rfcontrol_command_receive() {
@@ -122,7 +122,7 @@ void rfcontrol_command_receive() {
 	if(interruptCallback == NULL) {
 		RFControl::startReceiving(interrupt_pin);
 	}
-	printf("ACK\n");
+	fprintf(stderr, "ACK\n");
 }
 
 void rfcontrol_command_send() {
@@ -166,7 +166,7 @@ void rfcontrol_command_send() {
   while(sending) {
   	usleep(500);
   }
-  printf("ACK\n");
+  fprintf(stderr, "ACK\n");
 }
 
 void rfcontrol_command() {
@@ -189,7 +189,7 @@ int main(void) {
 	wiringXSetup();
 	pthread_mutex_init(&print_mutex, NULL);
 	pthread_create(&pth, NULL, interrupt, NULL);
-	printf("ready\n");
+	fprintf(stderr, "ready\n");
 	while(fgets(input, sizeof(input), stdin)) {
 		input[strlen(input)-1] = '\0'; //remove tailing new line
 		//printf("input=\"%s\"", input); 
@@ -200,7 +200,7 @@ int main(void) {
   	 	} else if(strcmp("RF", command) == 0) {
   	 		rfcontrol_command();
   	 	} else {
-  	 		printf("ERR unknown_command\n");
+  	 		fprintf(stderr, "ERR unknown_command\n");
   	 	}
   	 	pthread_mutex_unlock(&print_mutex);
 	}
