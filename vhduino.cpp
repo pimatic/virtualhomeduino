@@ -22,9 +22,8 @@ pthread_t pth;
 
 void attachInterrupt(uint8_t _interrput_pin, void (*ic)(void), int mode) {
 	interruptCallback = ic;
+	wiringXISR(_interrput_pin, INT_EDGE_BOTH);
 	interrupt_pin = _interrput_pin;
-	wiringXISR(interrupt_pin, INT_EDGE_BOTH);
-	pthread_create(&pth, NULL, interrupt, NULL);
 }
 
 unsigned long micros(void) {
@@ -33,48 +32,65 @@ unsigned long micros(void) {
 	return 1000000 * (unsigned int)tv.tv_sec + (unsigned int)tv.tv_usec;
 }
 
-
-void realtime() {
+void enableRealtime() {
 	// Lock memory to ensure no swapping is done.
 	if(mlockall(MCL_FUTURE|MCL_CURRENT)){
 		fprintf(stderr,"WARNING: Failed to lock memory\n");
 	}
 
-	// Set our thread to real time priority
-	struct sched_param sp;
+   	struct sched_param sp;
 	sp.sched_priority = 30;
 	if(pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp)){
 		fprintf(stderr,"WARNING: Failed to set thread to real-time priority\n");
 	}
 }
 
+void disableRealtime() {
+   	struct sched_param sp;
+	sp.sched_priority = 0;
+	if(pthread_setschedparam(pthread_self(), SCHED_OTHER, &sp)){
+		fprintf(stderr,"WARNING: Failed to set thread to lower priority\n");
+	}
+}
 
+
+unsigned int sending_timings_size;
+unsigned int sending_timings[256];
+unsigned int transmitter_pin;
+unsigned int sending_repeats;
+bool sending = false;
 pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 void *interrupt(void *param) {
-	realtime();
+	enableRealtime();
 	while(1) {
-		waitForInterrupt(interrupt_pin, 10000);
-		interruptCallback();
-		if(RFControl::hasData()) {
-			unsigned int *timings;
-			unsigned int timings_size;
-			RFControl::getRaw(&timings, &timings_size);
-			unsigned int buckets[8];
-			RFControl::compressTimings(buckets, timings, timings_size);
-			printf("RF receive ");
-			for(unsigned int i=0; i < 8; i++) {
-			 	printf("%d ",buckets[i]);
-			}
-			for(unsigned int i=0; i < timings_size; i++) {
-			 	printf("%d", timings[i]);
-			}
-			printf("\n");
-			RFControl::continueReceiving();
+		if(sending) {
+			RFControl::sendByTimings(transmitter_pin, sending_timings, sending_timings_size, sending_repeats);
+			sending = false;
 		}
-		// int duration = irq_read(1);
-		// printf("d: %d\n", duration);
+		if(interrupt_pin != -1) {
+			waitForInterrupt(interrupt_pin, 1000);
+			interruptCallback();
+			if(RFControl::hasData()) {
+				unsigned int *timings;
+				unsigned int timings_size;
+				RFControl::getRaw(&timings, &timings_size);
+				unsigned int buckets[8];
+				RFControl::compressTimings(buckets, timings, timings_size);
+				printf("RF receive ");
+				for(unsigned int i=0; i < 8; i++) {
+				 	printf("%d ",buckets[i]);
+				}
+				for(unsigned int i=0; i < timings_size; i++) {
+				 	printf("%d", timings[i]);
+				}
+				printf("\n");
+				RFControl::continueReceiving();
+			}
+		} else {
+			usleep(500);
+		}
 	}
 }
 
@@ -115,14 +131,14 @@ void rfcontrol_command_send() {
     argument_error();
     return;
   }
-  int transmitter_pin = atoi(arg);
+  transmitter_pin = atoi(arg);
 
   arg = strtok(NULL, delimiter);
   if(arg == NULL) {
     argument_error();
     return;
   }
-  int repeats = atoi(arg);
+  sending_repeats = atoi(arg);
 
   // read pulse lengths
   unsigned int buckets[8];
@@ -140,13 +156,16 @@ void rfcontrol_command_send() {
     argument_error();
     return;
   }
-  unsigned int timings_size = strlen(arg);
-  unsigned int timings[timings_size];
-  for(unsigned int i = 0; i < timings_size; i++) {
+  sending_timings_size = strlen(arg);
+  for(unsigned int i = 0; i < sending_timings_size; i++) {
     unsigned int index = arg[i] - '0';
-    timings[i] = buckets[index];
+    sending_timings[i] = buckets[index];
   }
-  RFControl::sendByTimings(transmitter_pin, timings, timings_size, repeats);
+  sending = true;
+  //wait till message was send
+  while(sending) {
+  	usleep(500);
+  }
   printf("ACK\n");
 }
 
@@ -169,6 +188,7 @@ void rfcontrol_command() {
 int main(void) {
 	wiringXSetup();
 	pthread_mutex_init(&print_mutex, NULL);
+	pthread_create(&pth, NULL, interrupt, NULL);
 	printf("ready\n");
 	while(fgets(input, sizeof(input), stdin)) {
 		input[strlen(input)-1] = '\0'; //remove tailing new line
@@ -190,19 +210,72 @@ int main(void) {
 
 
 void pinMode(uint8_t pin, uint8_t mode){
+	// printf("pin mode %d %d\n", pin, mode);
 	pinMode((int)pin, (int)mode);
 }
 void digitalWrite(uint8_t pin, uint8_t value){
+	// printf("write %d %d\n",pin, value );
 	digitalWrite((int)pin, (int)value);
 }
 int digitalRead(uint8_t pin){
-	digitalRead((int)pin);
+	return digitalRead((int)pin);
 }
 
 int analogRead(uint8_t){return 0;}
 void analogReference(uint8_t mode){}
 void analogWrite(uint8_t, int){}
 void delay(unsigned long){}
-void delayMicroseconds(unsigned int us){}
+/*
+
+ * delayMicroseconds:
+ * from wiringPi
+ *	This is somewhat intersting. It seems that on the Pi, a single call
+ *	to nanosleep takes some 80 to 130 microseconds anyway, so while
+ *	obeying the standards (may take longer), it's not always what we
+ *	want!
+ *
+ *	So what I'll do now is if the delay is less than 100uS we'll do it
+ *	in a hard loop, watching a built-in counter on the ARM chip. This is
+ *	somewhat sub-optimal in that it uses 100% CPU, something not an issue
+ *	in a microcontroller, but under a multi-tasking, multi-user OS, it's
+ *	wastefull, however we've no real choice )-:
+ *
+ *      Plan B: It seems all might not be well with that plan, so changing it
+ *      to use gettimeofday () and poll on that instead...
+ *********************************************************************************
+ */
+
+void delayMicrosecondsHard (unsigned int howLong)
+{
+  struct timeval tNow, tLong, tEnd ;
+
+  gettimeofday (&tNow, NULL) ;
+  tLong.tv_sec  = howLong / 1000000 ;
+  tLong.tv_usec = howLong % 1000000 ;
+  timeradd (&tNow, &tLong, &tEnd) ;
+
+  while (timercmp (&tNow, &tEnd, <))
+    gettimeofday (&tNow, NULL) ;
+}
+
+void delayMicroseconds (unsigned int howLong)
+{
+  // printf("delay %d\n",howLong );
+  struct timespec sleeper ;
+  unsigned int uSecs = howLong % 1000000 ;
+  unsigned int wSecs = howLong / 1000000 ;
+
+  /**/ if (howLong ==   0)
+    return ;
+  else if (howLong  < 100)
+    delayMicrosecondsHard (howLong) ;
+  else
+  {
+    sleeper.tv_sec  = wSecs ;
+    sleeper.tv_nsec = (long)(uSecs * 1000L) ;
+    nanosleep (&sleeper, NULL) ;
+  }
+}
+
 void detachInterrupt(uint8_t){}
 
