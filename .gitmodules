@@ -1,0 +1,6 @@
+[submodule "wiringX"]
+	path = wiringX
+	url = https://github.com/sweetpi/wiringX.git
+[submodule "rfcontrol"]
+	path = rfcontrol
+	url = https://github.com/pimatic/RFControl.git
