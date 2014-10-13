@@ -78,6 +78,7 @@ void *interrupt(void *param) {
 				RFControl::getRaw(&timings, &timings_size);
 				unsigned int buckets[8];
 				RFControl::compressTimings(buckets, timings, timings_size);
+        pthread_mutex_lock(&print_mutex);
 				fprintf(stderr, "RF receive ");
 				for(unsigned int i=0; i < 8; i++) {
 				 	fprintf(stderr, "%d ",buckets[i]);
@@ -86,6 +87,7 @@ void *interrupt(void *param) {
 				 	fprintf(stderr, "%d", timings[i]);
 				}
 				fprintf(stderr, "\n");
+        pthread_mutex_unlock(&print_mutex);
 				RFControl::continueReceiving();
 			}
 		} else {
