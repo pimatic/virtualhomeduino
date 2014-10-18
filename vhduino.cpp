@@ -38,8 +38,8 @@ void enableRealtime() {
 		fprintf(stderr,"WARNING: Failed to lock memory\n");
 	}
 
-		struct sched_param sp;
-	sp.sched_priority = 30;
+	struct sched_param sp;
+	sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
 	if(pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp)){
 		fprintf(stderr,"WARNING: Failed to set thread to real-time priority\n");
 	}
@@ -105,6 +105,7 @@ void argument_error() {
 
 void ping_command() {
 	char *arg;
+	pthread_mutex_lock(&print_mutex);
 	fprintf(stderr, "PING");
 	arg = strtok(NULL, delimiter);
 
@@ -112,6 +113,7 @@ void ping_command() {
 		fprintf(stderr, " %s", arg);
 	}
 	fprintf(stderr, "\n");
+	pthread_mutex_unlock(&print_mutex);
 }
 
 void rfcontrol_command_receive() {
@@ -124,7 +126,9 @@ void rfcontrol_command_receive() {
 	if(interruptCallback == NULL) {
 		RFControl::startReceiving(interrupt_pin);
 	}
+	pthread_mutex_lock(&print_mutex);
 	fprintf(stderr, "ACK\n");
+	pthread_mutex_unlock(&print_mutex);
 }
 
 void rfcontrol_command_send() {
@@ -168,7 +172,9 @@ void rfcontrol_command_send() {
 	while(sending) {
 		usleep(500);
 	}
+	pthread_mutex_lock(&print_mutex);	
 	fprintf(stderr, "ACK\n");
+	pthread_mutex_unlock(&print_mutex);
 }
 
 void rfcontrol_command() {
@@ -195,16 +201,16 @@ int main(void) {
 	while(fgets(input, sizeof(input), stdin)) {
 		input[strlen(input)-1] = '\0'; //remove tailing new line
 		//printf("input=\"%s\"", input); 
-			pthread_mutex_lock(&print_mutex);
 			char* command = strtok(input, delimiter);
 			if(strcmp("PING", command) == 0) {
 				ping_command();
 			} else if(strcmp("RF", command) == 0) {
 				rfcontrol_command();
 			} else {
+				pthread_mutex_lock(&print_mutex);	
 				fprintf(stderr, "ERR unknown_command\n");
+				pthread_mutex_unlock(&print_mutex);
 			}
-			pthread_mutex_unlock(&print_mutex);
 	}
 
 	return 0;
