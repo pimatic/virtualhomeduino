@@ -38,7 +38,7 @@ void enableRealtime() {
 		fprintf(stderr,"WARNING: Failed to lock memory\n");
 	}
 
-   	struct sched_param sp;
+		struct sched_param sp;
 	sp.sched_priority = 30;
 	if(pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp)){
 		fprintf(stderr,"WARNING: Failed to set thread to real-time priority\n");
@@ -46,7 +46,7 @@ void enableRealtime() {
 }
 
 void disableRealtime() {
-   	struct sched_param sp;
+		struct sched_param sp;
 	sp.sched_priority = 0;
 	if(pthread_setschedparam(pthread_self(), SCHED_OTHER, &sp)){
 		fprintf(stderr,"WARNING: Failed to set thread to lower priority\n");
@@ -78,16 +78,16 @@ void *interrupt(void *param) {
 				RFControl::getRaw(&timings, &timings_size);
 				unsigned int buckets[8];
 				RFControl::compressTimings(buckets, timings, timings_size);
-        pthread_mutex_lock(&print_mutex);
+				pthread_mutex_lock(&print_mutex);
 				fprintf(stderr, "RF receive ");
 				for(unsigned int i=0; i < 8; i++) {
-				 	fprintf(stderr, "%d ",buckets[i]);
+					fprintf(stderr, "%d ",buckets[i]);
 				}
 				for(unsigned int i=0; i < timings_size; i++) {
-				 	fprintf(stderr, "%d", timings[i]);
+					fprintf(stderr, "%d", timings[i]);
 				}
 				fprintf(stderr, "\n");
-        pthread_mutex_unlock(&print_mutex);
+				pthread_mutex_unlock(&print_mutex);
 				RFControl::continueReceiving();
 			}
 		} else {
@@ -128,62 +128,62 @@ void rfcontrol_command_receive() {
 }
 
 void rfcontrol_command_send() {
-  char* arg = strtok(NULL, delimiter);
-  if(arg == NULL) {
-    argument_error();
-    return;
-  }
-  transmitter_pin = atoi(arg);
+	char* arg = strtok(NULL, delimiter);
+	if(arg == NULL) {
+		argument_error();
+		return;
+	}
+	transmitter_pin = atoi(arg);
 
-  arg = strtok(NULL, delimiter);
-  if(arg == NULL) {
-    argument_error();
-    return;
-  }
-  sending_repeats = atoi(arg);
+	arg = strtok(NULL, delimiter);
+	if(arg == NULL) {
+		argument_error();
+		return;
+	}
+	sending_repeats = atoi(arg);
 
-  // read pulse lengths
-  unsigned int buckets[8];
-  for(unsigned int i = 0; i < 8; i++) {
-    arg = strtok(NULL, delimiter);
-    if(arg == NULL) {
-      argument_error();
-      return;
-    }
-    buckets[i] = atoi(arg);
-  }
-  //read pulse sequence
-  arg = strtok(NULL, delimiter);
-  if(arg == NULL) {
-    argument_error();
-    return;
-  }
-  sending_timings_size = strlen(arg);
-  for(unsigned int i = 0; i < sending_timings_size; i++) {
-    unsigned int index = arg[i] - '0';
-    sending_timings[i] = buckets[index];
-  }
-  sending = true;
-  //wait till message was send
-  while(sending) {
-  	usleep(500);
-  }
-  fprintf(stderr, "ACK\n");
+	// read pulse lengths
+	unsigned int buckets[8];
+	for(unsigned int i = 0; i < 8; i++) {
+		arg = strtok(NULL, delimiter);
+		if(arg == NULL) {
+			argument_error();
+			return;
+		}
+		buckets[i] = atoi(arg);
+	}
+	//read pulse sequence
+	arg = strtok(NULL, delimiter);
+	if(arg == NULL) {
+		argument_error();
+		return;
+	}
+	sending_timings_size = strlen(arg);
+	for(unsigned int i = 0; i < sending_timings_size; i++) {
+		unsigned int index = arg[i] - '0';
+		sending_timings[i] = buckets[index];
+	}
+	sending = true;
+	//wait till message was send
+	while(sending) {
+		usleep(500);
+	}
+	fprintf(stderr, "ACK\n");
 }
 
 void rfcontrol_command() {
-  char* arg = strtok(NULL, delimiter);
-  if(arg == NULL) {
-    argument_error();
-    return;
-  }
-  if (strcmp(arg, "send") == 0) {
-    rfcontrol_command_send();
-  } else if (strcmp(arg, "receive") == 0) {
-    rfcontrol_command_receive();
-  } else {
-    argument_error();
-  }
+	char* arg = strtok(NULL, delimiter);
+	if(arg == NULL) {
+		argument_error();
+		return;
+	}
+	if (strcmp(arg, "send") == 0) {
+		rfcontrol_command_send();
+	} else if (strcmp(arg, "receive") == 0) {
+		rfcontrol_command_receive();
+	} else {
+		argument_error();
+	}
 }
 
 
@@ -195,16 +195,16 @@ int main(void) {
 	while(fgets(input, sizeof(input), stdin)) {
 		input[strlen(input)-1] = '\0'; //remove tailing new line
 		//printf("input=\"%s\"", input); 
-  	 	pthread_mutex_lock(&print_mutex);
-  	 	char* command = strtok(input, delimiter);
-  	 	if(strcmp("PING", command) == 0) {
-  	 		ping_command();
-  	 	} else if(strcmp("RF", command) == 0) {
-  	 		rfcontrol_command();
-  	 	} else {
-  	 		fprintf(stderr, "ERR unknown_command\n");
-  	 	}
-  	 	pthread_mutex_unlock(&print_mutex);
+			pthread_mutex_lock(&print_mutex);
+			char* command = strtok(input, delimiter);
+			if(strcmp("PING", command) == 0) {
+				ping_command();
+			} else if(strcmp("RF", command) == 0) {
+				rfcontrol_command();
+			} else {
+				fprintf(stderr, "ERR unknown_command\n");
+			}
+			pthread_mutex_unlock(&print_mutex);
 	}
 
 	return 0;
@@ -249,34 +249,34 @@ void delay(unsigned long){}
 
 void delayMicrosecondsHard (unsigned int howLong)
 {
-  struct timeval tNow, tLong, tEnd ;
+	struct timeval tNow, tLong, tEnd ;
 
-  gettimeofday (&tNow, NULL) ;
-  tLong.tv_sec  = howLong / 1000000 ;
-  tLong.tv_usec = howLong % 1000000 ;
-  timeradd (&tNow, &tLong, &tEnd) ;
+	gettimeofday (&tNow, NULL) ;
+	tLong.tv_sec  = howLong / 1000000 ;
+	tLong.tv_usec = howLong % 1000000 ;
+	timeradd (&tNow, &tLong, &tEnd) ;
 
-  while (timercmp (&tNow, &tEnd, <))
-    gettimeofday (&tNow, NULL) ;
+	while (timercmp (&tNow, &tEnd, <))
+		gettimeofday (&tNow, NULL) ;
 }
 
 void delayMicroseconds (unsigned int howLong)
 {
-  // printf("delay %d\n",howLong );
-  struct timespec sleeper ;
-  unsigned int uSecs = howLong % 1000000 ;
-  unsigned int wSecs = howLong / 1000000 ;
+	// printf("delay %d\n",howLong );
+	struct timespec sleeper ;
+	unsigned int uSecs = howLong % 1000000 ;
+	unsigned int wSecs = howLong / 1000000 ;
 
-  /**/ if (howLong ==   0)
-    return ;
-  else if (howLong  < 100)
-    delayMicrosecondsHard (howLong) ;
-  else
-  {
-    sleeper.tv_sec  = wSecs ;
-    sleeper.tv_nsec = (long)(uSecs * 1000L) ;
-    nanosleep (&sleeper, NULL) ;
-  }
+	/**/ if (howLong ==   0)
+		return ;
+	else if (howLong  < 100)
+		delayMicrosecondsHard (howLong) ;
+	else
+	{
+		sleeper.tv_sec  = wSecs ;
+		sleeper.tv_nsec = (long)(uSecs * 1000L) ;
+		nanosleep (&sleeper, NULL) ;
+	}
 }
 
 void detachInterrupt(uint8_t){}
