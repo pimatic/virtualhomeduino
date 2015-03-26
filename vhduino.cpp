@@ -77,11 +77,13 @@ void *interrupt(void *param) {
 				unsigned int timings_size;
 				RFControl::getRaw(&timings, &timings_size);
 				unsigned int buckets[8];
+				unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
 				RFControl::compressTimings(buckets, timings, timings_size);
 				pthread_mutex_lock(&print_mutex);
 				fprintf(stderr, "RF receive ");
 				for(unsigned int i=0; i < 8; i++) {
-					fprintf(stderr, "%d ",buckets[i]);
+					unsigned long bucket = buckets[i] * pulse_length_divider;
+					fprintf(stderr, "%lu ", bucket);
 				}
 				for(unsigned int i=0; i < timings_size; i++) {
 					fprintf(stderr, "%d", timings[i]);
