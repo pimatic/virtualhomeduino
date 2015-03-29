@@ -184,7 +184,7 @@ int main(void) {
 	pthread_create(&pth, NULL, interrupt, NULL);
 	fprintf(stderr, "ready\n");
 	while(fgets(input, sizeof(input), stdin)) {
-		if(strlen(input) == 0) {
+		if(strlen(input) == 1) {
 			continue;
 		}
 		input[strlen(input)-1] = '\0'; //remove tailing new line

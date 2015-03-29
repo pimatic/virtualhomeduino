@@ -28,7 +28,6 @@ static inline void hw_callInterrupt() {
 }
 
 static inline void hw_attachInterrupt(uint8_t interrput_pin, void (*ic)(void)) {
-	fprintf(stderr, "attatch %d\n", interrput_pin);
 	_hw_interruptCallback = ic;
 	wiringXISR(interrput_pin, INT_EDGE_BOTH);
 	_hw_interrupt_pin = interrput_pin;
