@@ -7,30 +7,12 @@
 #include <semaphore.h>
 #include <sys/mman.h>
 #include <signal.h>
-
-extern "C" {
-	#include "wiringX/wiringX.h"
-}
+#include <string.h>
 
 #include "rfcontrol/RFControl.h"
+#include "wiringx_functions.h"
 
-void *interrupt(void *param);
-
-void (*interruptCallback)(void) = NULL;
-int interrupt_pin = -1;
 pthread_t pth;
-
-void attachInterrupt(uint8_t _interrput_pin, void (*ic)(void), int mode) {
-	interruptCallback = ic;
-	wiringXISR(_interrput_pin, INT_EDGE_BOTH);
-	interrupt_pin = _interrput_pin;
-}
-
-unsigned long micros(void) {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return 1000000 * (unsigned int)tv.tv_sec + (unsigned int)tv.tv_usec;
-}
 
 void enableRealtime() {
 	// Lock memory to ensure no swapping is done.
@@ -46,7 +28,7 @@ void enableRealtime() {
 }
 
 void disableRealtime() {
-		struct sched_param sp;
+	struct sched_param sp;
 	sp.sched_priority = 0;
 	if(pthread_setschedparam(pthread_self(), SCHED_OTHER, &sp)){
 		fprintf(stderr,"WARNING: Failed to set thread to lower priority\n");
@@ -62,16 +44,16 @@ bool sending = false;
 pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
-void *interrupt(void *param) {
+void* interrupt(void *param) {
 	enableRealtime();
 	while(1) {
 		if(sending) {
 			RFControl::sendByTimings(transmitter_pin, sending_timings, sending_timings_size, sending_repeats);
 			sending = false;
 		}
-		if(interrupt_pin != -1) {
-			waitForInterrupt(interrupt_pin, 1000);
-			interruptCallback();
+		if(hw_getInterruptPin() != -1) {
+			waitForInterrupt(hw_getInterruptPin(), 1000);
+			hw_callInterrupt();
 			if(RFControl::hasData()) {
 				unsigned int *timings;
 				unsigned int timings_size;
@@ -96,6 +78,7 @@ void *interrupt(void *param) {
 			usleep(500);
 		}
 	}
+	return NULL;
 }
 
 char input[256];
@@ -125,7 +108,7 @@ void rfcontrol_command_receive() {
 		return;
 	}
 	int interrupt_pin = atoi(arg);
-	if(interruptCallback == NULL) {
+	if(hw_getInterruptPin() == -1) {
 		RFControl::startReceiving(interrupt_pin);
 	}
 	pthread_mutex_lock(&print_mutex);
@@ -201,6 +184,9 @@ int main(void) {
 	pthread_create(&pth, NULL, interrupt, NULL);
 	fprintf(stderr, "ready\n");
 	while(fgets(input, sizeof(input), stdin)) {
+		if(strlen(input) == 0) {
+			continue;
+		}
 		input[strlen(input)-1] = '\0'; //remove tailing new line
 		//printf("input=\"%s\"", input); 
 			char* command = strtok(input, delimiter);
@@ -217,103 +203,3 @@ int main(void) {
 
 	return 0;
 }
-
-
-void pinMode(uint8_t pin, uint8_t mode){
-	// printf("pin mode %d %d\n", pin, mode);
-	pinMode((int)pin, (int)mode);
-}
-void digitalWrite(uint8_t pin, uint8_t value){
-	// printf("write %d %d\n",pin, value );
-	digitalWrite((int)pin, (int)value);
-}
-int digitalRead(uint8_t pin){
-	return digitalRead((int)pin);
-}
-
-int analogRead(uint8_t){return 0;}
-void analogReference(uint8_t mode){}
-void analogWrite(uint8_t, int){}
-void delay(unsigned long){}
-/*
-
- * delayMicroseconds:
- * from wiringPi
- *	This is somewhat intersting. It seems that on the Pi, a single call
- *	to nanosleep takes some 80 to 130 microseconds anyway, so while
- *	obeying the standards (may take longer), it's not always what we
- *	want!
- *
- *	So what I'll do now is if the delay is less than 100uS we'll do it
- *	in a hard loop, watching a built-in counter on the ARM chip. This is
- *	somewhat sub-optimal in that it uses 100% CPU, something not an issue
- *	in a microcontroller, but under a multi-tasking, multi-user OS, it's
- *	wastefull, however we've no real choice )-:
- *
- *      Plan B: It seems all might not be well with that plan, so changing it
- *      to use gettimeofday () and poll on that instead...
- *********************************************************************************
- */
-
-
-static void delayMicrosecondsHard(unsigned int howLong) {
-	struct timeval tNow, tLong, tEnd ;
-
-	gettimeofday(&tNow, NULL);
-	tLong.tv_sec  = (__time_t)howLong / 1000000;
-	tLong.tv_usec = (__suseconds_t)howLong % 1000000;
-	timeradd(&tNow, &tLong, &tEnd);
-
-	while(timercmp(&tNow, &tEnd, <))
-		gettimeofday(&tNow, NULL);
-}
-
-void delayMicroseconds(unsigned int howLong) {
-	struct timespec sleeper;
-	long int uSecs = (__time_t)howLong % 1000000;
-	unsigned int wSecs = howLong / 1000000;
-
-	if(howLong == 0) {
-		return;
-	} else if(howLong  < 100) {
-		delayMicrosecondsHard(howLong);
-	} else {
-		sleeper.tv_sec = (__time_t)wSecs;
-		sleeper.tv_nsec = (long)(uSecs * 1000L);
-		nanosleep(&sleeper, NULL);
-	}
-}
-
-/*void delayMicrosecondsHard (unsigned int howLong)
-{
-	struct timeval tNow, tLong, tEnd ;
-
-	gettimeofday (&tNow, NULL) ;
-	tLong.tv_sec  = howLong / 1000000 ;
-	tLong.tv_usec = howLong % 1000000 ;
-	timeradd (&tNow, &tLong, &tEnd) ;
-
-	while (timercmp (&tNow, &tEnd, <))
-		gettimeofday (&tNow, NULL) ;
-}
-
-void delayMicroseconds (unsigned int howLong)
-{
-	struct timespec sleeper ;
-	unsigned int uSecs = howLong % 1000000 ;
-	unsigned int wSecs = howLong / 1000000 ;
-
-	if (howLong ==   0)
-		return ;
-	else if (howLong  < 100)
-		delayMicrosecondsHard (howLong) ;
-	else
-	{
-		sleeper.tv_sec  = wSecs ;
-		sleeper.tv_nsec = (long)(uSecs * 1000L) ;
-		nanosleep (&sleeper, NULL) ;
-	}
-}
-*/
-void detachInterrupt(uint8_t){}
-
