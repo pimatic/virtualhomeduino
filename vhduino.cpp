@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -6,22 +5,30 @@
 #include <sys/time.h>
 #include <semaphore.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <signal.h>
 #include <string.h>
-
-#include "rfcontrol/RFControl.h"
-#include "wiringx_functions.h"
-
+#include "pigpio_functions.h"
+extern "C" {
+#include "pigpio/pigpio.h"
+}
 pthread_t pth;
-
+static pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
 void enableRealtime() {
+	struct sched_param sp;
 	// Lock memory to ensure no swapping is done.
 	if(mlockall(MCL_FUTURE|MCL_CURRENT)){
 		fprintf(stderr,"WARNING: Failed to lock memory\n");
 	}
-
-	struct sched_param sp;
+        int nice_level = -20 ;
+        setpriority (PRIO_PROCESS, getpid(), nice_level);
 	sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
+        if (sp.sched_priority == -1) {
+		fprintf(stderr,"WARNING: Failed to set thread to real-time priority\n");
+	}
+   	if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0) {
+		fprintf(stderr,"WARNING: Failed to set thread to real-time priority\n");
+	}
 	if(pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp)){
 		fprintf(stderr,"WARNING: Failed to set thread to real-time priority\n");
 	}
@@ -40,45 +47,32 @@ unsigned int sending_timings_size;
 unsigned int sending_timings[256];
 unsigned int transmitter_pin;
 unsigned int sending_repeats;
-bool sending = false;
-pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static void handle_pigpio_interrupt(int gpio, int level, uint32_t tick) {
+if (level < 2) {
+	hw_callInterrupt(tick);
+}
+}
 
-void* interrupt(void *param) {
-	enableRealtime();
-	while(1) {
-		if(sending) {
-			RFControl::sendByTimings(transmitter_pin, sending_timings, sending_timings_size, sending_repeats);
-			sending = false;
-		}
-		if(hw_getInterruptPin() != -1) {
-			waitForInterrupt(hw_getInterruptPin(), 1000);
-			hw_callInterrupt();
-			if(RFControl::hasData()) {
-				unsigned int *timings;
-				unsigned int timings_size;
-				RFControl::getRaw(&timings, &timings_size);
-				unsigned int buckets[8];
-				unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
-				RFControl::compressTimings(buckets, timings, timings_size);
-				pthread_mutex_lock(&print_mutex);
-				fprintf(stderr, "RF receive ");
-				for(unsigned int i=0; i < 8; i++) {
-					unsigned long bucket = buckets[i] * pulse_length_divider;
-					fprintf(stderr, "%lu ", bucket);
-				}
-				for(unsigned int i=0; i < timings_size; i++) {
-					fprintf(stderr, "%d", timings[i]);
-				}
-				fprintf(stderr, "\n");
-				pthread_mutex_unlock(&print_mutex);
-				RFControl::continueReceiving();
-			}
-		} else {
-			usleep(500);
-		}
-	}
-	return NULL;
+void checkData() {
+                        if(RFControl::hasData()) {
+                                unsigned int *timings;
+                                unsigned int timings_size;
+                                RFControl::getRaw(&timings, &timings_size);
+                                unsigned int buckets[8];
+                                unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
+                                RFControl::compressTimings(buckets, timings, timings_size);
+                                fprintf(stderr, "RF receive ");
+                                for(unsigned int i=0; i < 8; i++) {
+                                        unsigned long bucket = buckets[i] * pulse_length_divider;
+                                        fprintf(stderr, "%lu ", bucket);
+                                }
+                                for(unsigned int i=0; i < timings_size; i++) {
+                                        fprintf(stderr, "%d", timings[i]);
+                                }
+                                fprintf(stderr, "\n");
+                                RFControl::continueReceiving();
+} 
 }
 
 char input[256];
@@ -109,10 +103,17 @@ void rfcontrol_command_receive() {
 	}
 	int interrupt_pin = atoi(arg);
 	if(hw_getInterruptPin() == -1) {
-		RFControl::startReceiving(interrupt_pin);
-	}
 	pthread_mutex_lock(&print_mutex);
+        if (gpioSetMode(interrupt_pin, PI_INPUT) == 0) {
+        gpioSetPullUpDown(interrupt_pin, PI_PUD_UP); 
+	if (gpioSetAlertFunc(interrupt_pin,handle_pigpio_interrupt) != 0) {
+		printf("Error setting gpioSetAlertFunc for pin %d",interrupt_pin);
+	}
+	gpioSetTimerFunc(0,50,checkData);
+	RFControl::startReceiving(interrupt_pin);
+	}
 	fprintf(stderr, "ACK\n");
+	}
 	pthread_mutex_unlock(&print_mutex);
 }
 
@@ -123,7 +124,6 @@ void rfcontrol_command_send() {
 		return;
 	}
 	transmitter_pin = atoi(arg);
-
 	arg = strtok(NULL, delimiter);
 	if(arg == NULL) {
 		argument_error();
@@ -152,12 +152,14 @@ void rfcontrol_command_send() {
 		unsigned int index = arg[i] - '0';
 		sending_timings[i] = buckets[index];
 	}
-	sending = true;
-	//wait till message was send
-	while(sending) {
-		usleep(500);
+	pthread_mutex_lock(&print_mutex);
+	fprintf(stderr,"pin %d",transmitter_pin);
+	if (gpioGetMode(transmitter_pin) != 1) {
+	if (gpioSetMode(transmitter_pin,PI_OUTPUT) != 0) {
+	printf("Error setting output mode for pin %d",transmitter_pin);
 	}
-	pthread_mutex_lock(&print_mutex);	
+	}
+	RFControl::sendByTimings(transmitter_pin, sending_timings, sending_timings_size, sending_repeats);
 	fprintf(stderr, "ACK\n");
 	pthread_mutex_unlock(&print_mutex);
 }
@@ -179,9 +181,13 @@ void rfcontrol_command() {
 
 
 int main(void) {
-	wiringXSetup();
+	enableRealtime();
+	gpioCfgMemAlloc(PI_MEM_ALLOC_PAGEMAP);
+	gpioCfgBufferSize(256);
+	gpioInitialise();
+        gpioCfgSetInternals(PI_CFG_RT_PRIORITY);
 	pthread_mutex_init(&print_mutex, NULL);
-	pthread_create(&pth, NULL, interrupt, NULL);
+	//pthread_create(&pth, NULL, interrupt, NULL);
 	fprintf(stderr, "ready\n");
 	while(fgets(input, sizeof(input), stdin)) {
 		if(strlen(input) == 1) {
@@ -200,6 +206,6 @@ int main(void) {
 				pthread_mutex_unlock(&print_mutex);
 			}
 	}
-
+	gpioTerminate();
 	return 0;
 }
