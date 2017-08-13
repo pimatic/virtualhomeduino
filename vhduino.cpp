@@ -1,6 +1,12 @@
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <semaphore.h>
@@ -9,11 +15,26 @@
 #include <signal.h>
 #include <string.h>
 #include "pigpio_functions.h"
+#include "pigpio/pigpio.h"
 extern "C" {
 #include "pigpio/pigpio.h"
 }
 pthread_t pth;
-static pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void handler(int sig) {
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+  exit(1);
+}
+
+
 void enableRealtime() {
 	struct sched_param sp;
 	// Lock memory to ensure no swapping is done.
@@ -47,6 +68,7 @@ unsigned int sending_timings_size;
 unsigned int sending_timings[256];
 unsigned int transmitter_pin;
 unsigned int sending_repeats;
+pthread_mutex_t print_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void handle_pigpio_interrupt(int gpio, int level, uint32_t tick) {
 if (level < 2) {
@@ -63,6 +85,7 @@ void checkData() {
                                 unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
                                 RFControl::compressTimings(buckets, timings, timings_size);
                                 fprintf(stderr, "RF receive ");
+				pthread_mutex_lock(&print_mutex);
                                 for(unsigned int i=0; i < 8; i++) {
                                         unsigned long bucket = buckets[i] * pulse_length_divider;
                                         fprintf(stderr, "%lu ", bucket);
@@ -71,6 +94,7 @@ void checkData() {
                                         fprintf(stderr, "%d", timings[i]);
                                 }
                                 fprintf(stderr, "\n");
+				pthread_mutex_unlock(&print_mutex);
                                 RFControl::continueReceiving();
 } 
 }
@@ -84,7 +108,7 @@ void argument_error() {
 
 void ping_command() {
 	char *arg;
-	pthread_mutex_lock(&print_mutex);
+	pthread_mutex_lock(&print_mutex);	
 	fprintf(stderr, "PING");
 	arg = strtok(NULL, delimiter);
 
@@ -93,6 +117,7 @@ void ping_command() {
 	}
 	fprintf(stderr, "\n");
 	pthread_mutex_unlock(&print_mutex);
+	
 }
 
 void rfcontrol_command_receive() {
@@ -103,18 +128,21 @@ void rfcontrol_command_receive() {
 	}
 	int interrupt_pin = atoi(arg);
 	if(hw_getInterruptPin() == -1) {
-	pthread_mutex_lock(&print_mutex);
+	
         if (gpioSetMode(interrupt_pin, PI_INPUT) == 0) {
-        gpioSetPullUpDown(interrupt_pin, PI_PUD_UP); 
+        if (gpioSetPullUpDown(interrupt_pin, PI_PUD_UP) == 0) {
 	if (gpioSetAlertFunc(interrupt_pin,handle_pigpio_interrupt) != 0) {
 		printf("Error setting gpioSetAlertFunc for pin %d",interrupt_pin);
 	}
-	gpioSetTimerFunc(0,50,checkData);
+	gpioSetTimerFunc(0,200,checkData);
 	RFControl::startReceiving(interrupt_pin);
 	}
-	fprintf(stderr, "ACK\n");
 	}
+	pthread_mutex_lock(&print_mutex);
+	fprintf(stderr, "ACK\n");
 	pthread_mutex_unlock(&print_mutex);
+	}
+	
 }
 
 void rfcontrol_command_send() {
@@ -124,6 +152,9 @@ void rfcontrol_command_send() {
 		return;
 	}
 	transmitter_pin = atoi(arg);
+//        if (gpioSetMode(transmitter_pin,PI_OUTPUT) != 0) {
+//        printf("Error setting output mode for pin %d",transmitter_pin);
+//        }
 	arg = strtok(NULL, delimiter);
 	if(arg == NULL) {
 		argument_error();
@@ -152,16 +183,11 @@ void rfcontrol_command_send() {
 		unsigned int index = arg[i] - '0';
 		sending_timings[i] = buckets[index];
 	}
-	pthread_mutex_lock(&print_mutex);
-	//fprintf(stderr,"pin %d",transmitter_pin);
-	if (gpioGetMode(transmitter_pin) != 1) {
-	if (gpioSetMode(transmitter_pin,PI_OUTPUT) != 0) {
-	printf("Error setting output mode for pin %d",transmitter_pin);
-	}
-	}
+        pthread_mutex_lock(&print_mutex);
 	RFControl::sendByTimings(transmitter_pin, sending_timings, sending_timings_size, sending_repeats);
 	fprintf(stderr, "ACK\n");
 	pthread_mutex_unlock(&print_mutex);
+	
 }
 
 void rfcontrol_command() {
@@ -179,16 +205,35 @@ void rfcontrol_command() {
 	}
 }
 
+void sig_handler(int signo)
+{
+  if (signo == SIGINT) {
+    fprintf(stderr,"received SIGINT\n");
+} else {
+   fprintf(stderr,"received %d\n",signo);
+}
+               gpioTerminate();
+               exit(-1);
+}
 
 int main(void) {
+  if (signal(SIGSEGV, sig_handler) == SIG_ERR) {
+	  printf("\ncan't catch SIGINT\n");
+}
+	int init;
+	pthread_mutex_init(&print_mutex, NULL);
 	enableRealtime();
 	gpioCfgMemAlloc(PI_MEM_ALLOC_PAGEMAP);
 	gpioCfgBufferSize(256);
-	gpioInitialise();
         gpioCfgSetInternals(PI_CFG_RT_PRIORITY);
-	pthread_mutex_init(&print_mutex, NULL);
-	//pthread_create(&pth, NULL, interrupt, NULL);
-	fprintf(stderr, "ready\n");
+        init = gpioInitialise();	
+	if(init == PI_INIT_FAILED) {
+        fprintf(stderr, "Error initialising pigpio %d\n",init);
+	} else {
+	fprintf(stderr, "ready %d\n",init);
+//	fprintf(stderr,"pigpio version %d.\n", gpioVersion());
+//        fprintf(stderr,"Hardware revision %d.\n", gpioHardwareRevision());
+	}
 	while(fgets(input, sizeof(input), stdin)) {
 		if(strlen(input) == 1) {
 			continue;
@@ -203,9 +248,10 @@ int main(void) {
 			} else {
 				pthread_mutex_lock(&print_mutex);	
 				fprintf(stderr, "ERR unknown_command\n");
-				pthread_mutex_unlock(&print_mutex);
+				pthread_mutex_unlock(&print_mutex);	
+				
 			}
 	}
 	gpioTerminate();
-	return 0;
+	return EXIT_SUCCESS;
 }

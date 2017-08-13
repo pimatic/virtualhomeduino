@@ -1,6 +1,3 @@
-#ifndef _WIRING_X_FUNCTIONS_H_
-#define _WIRING_X_FUNCTIONS_H_
-
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <stdint.h>
@@ -18,13 +15,14 @@ extern "C" {
 }
 
 #define MAX_RECORDINGS 4096
+#define OUTPUT PI_OUTPUT
+#define LOW PI_LOW
 extern int _hw_interrupt_pin;
 extern long _lastmic;
 extern void (*_hw_interruptCallback)(void);
 static inline int hw_getInterruptPin() {
 	return _hw_interrupt_pin;
 }
-
 
 static inline void hw_callInterrupt(uint32_t tick) {
 		_lastmic = tick;
@@ -42,15 +40,30 @@ static inline unsigned long hw_micros(void) {
 	return _lastmic;
 }
 static inline void hw_delayMicroseconds(unsigned long time_to_wait) {
-	gpioDelay(time_to_wait);
+	uint32_t delay=gpioDelay(time_to_wait);
+	uint32_t diff = delay - time_to_wait;
+//       fprintf(stderr,"Sleeping for %lu\n",time_to_wait);
+//       time_to_wait=time_to_wait*1000;
+//          fprintf(stderr,"GPIO gpioDelay=%d\trequested_delay=%lu\tdiff=%d\n",delay,time_to_wait,diff);
+//usleep(time_to_wait);
+// struct timespec wait;
+//    wait.tv_sec = time_to_wait / (1000 * 1000);
+//    wait.tv_nsec = (time_to_wait % (1000 * 1000)) * 1000;
+//    nanosleep(&wait, NULL);
 }
 
 static inline void hw_pinMode(uint8_t pin, uint8_t mode){
-//	gpioSetMode(pin, mode);
+//	fprintf(stderr,"Setting pin %d to %d\n",pin,mode);
+	if (gpioSetMode(pin, mode) != 0) {
+                fprintf(stderr,"GPIO set mode error\n");
+        }
+
 }
 
 static inline void hw_digitalWrite(uint8_t pin, uint8_t value){
-	gpioWrite(pin, value);
+	if (gpioWrite(pin, value) == 0) {
+//        fprintf(stderr,"Writing %d to %d\n",value,pin);
+	} else {
+		fprintf(stderr,"GPIO write error\n");
+	}
 }
-
-#endif
