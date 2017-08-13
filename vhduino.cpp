@@ -153,7 +153,7 @@ void rfcontrol_command_send() {
 		sending_timings[i] = buckets[index];
 	}
 	pthread_mutex_lock(&print_mutex);
-	fprintf(stderr,"pin %d",transmitter_pin);
+	//fprintf(stderr,"pin %d",transmitter_pin);
 	if (gpioGetMode(transmitter_pin) != 1) {
 	if (gpioSetMode(transmitter_pin,PI_OUTPUT) != 0) {
 	printf("Error setting output mode for pin %d",transmitter_pin);
