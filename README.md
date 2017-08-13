@@ -3,8 +3,12 @@ virtualhomeduino
 
 quickly hacked together proof of concept stuff for virtualhomeduino
 
-Replaced WiringX by PiGPIO Tested on Raspberry PI v1 Model B\n
-Pin numbers in config are real GPIO pin numbers, the following configuration has been used on the RPIv1 Model B\n
+Replaced WiringX by PiGPIO Tested on Raspberry PI v1 Model B
+
+
+Pin numbers in config are real GPIO pin numbers, the following configuration has been used on the RPIv1 Model B
+
+
 
     {
       "plugin": "homeduino",
