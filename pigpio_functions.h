@@ -14,7 +14,7 @@ extern "C" {
 #include "pigpio/pigpio.h"
 }
 
-#define MAX_RECORDINGS 4096
+#define MAX_RECORDINGS 1024
 #define OUTPUT PI_OUTPUT
 #define LOW PI_LOW
 extern int _hw_interrupt_pin;
@@ -39,31 +39,16 @@ static inline void hw_detachInterrupt(uint8_t){
 static inline unsigned long hw_micros(void) {
 	return _lastmic;
 }
-static inline void hw_delayMicroseconds(unsigned long time_to_wait) {
-	uint32_t delay=gpioDelay(time_to_wait);
-	uint32_t diff = delay - time_to_wait;
-//       fprintf(stderr,"Sleeping for %lu\n",time_to_wait);
-//       time_to_wait=time_to_wait*1000;
-//          fprintf(stderr,"GPIO gpioDelay=%d\trequested_delay=%lu\tdiff=%d\n",delay,time_to_wait,diff);
-//usleep(time_to_wait);
-// struct timespec wait;
-//    wait.tv_sec = time_to_wait / (1000 * 1000);
-//    wait.tv_nsec = (time_to_wait % (1000 * 1000)) * 1000;
-//    nanosleep(&wait, NULL);
-}
 
 static inline void hw_pinMode(uint8_t pin, uint8_t mode){
-//	fprintf(stderr,"Setting pin %d to %d\n",pin,mode);
-	if (gpioSetMode(pin, mode) != 0) {
-                fprintf(stderr,"GPIO set mode error\n");
-        }
+	gpioSetMode(pin, mode);
 
 }
-
 static inline void hw_digitalWrite(uint8_t pin, uint8_t value){
-	if (gpioWrite(pin, value) == 0) {
-//        fprintf(stderr,"Writing %d to %d\n",value,pin);
-	} else {
+	if (gpioWrite(pin, value) != 0) {
 		fprintf(stderr,"GPIO write error\n");
 	}
+}
+static inline void hw_delayMicroseconds(unsigned long time_to_wait) {
+	gpioDelay(time_to_wait);
 }
