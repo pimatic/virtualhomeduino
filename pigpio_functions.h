@@ -50,5 +50,12 @@ static inline void hw_digitalWrite(uint8_t pin, uint8_t value){
 	}
 }
 static inline void hw_delayMicroseconds(unsigned long time_to_wait) {
-	gpioDelay(time_to_wait);
+uint32_t diffTick;
+uint32_t startTick = gpioTick();
+while(true){
+diffTick = gpioTick() - startTick;
+if (diffTick > time_to_wait) {
+break;
+}
+}
 }
