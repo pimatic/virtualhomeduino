@@ -2,5 +2,5 @@
 	path = pigpio
 	url = https://github.com/joan2937/pigpio
 [submodule "rfcontrol"]
-	path = rfcontrol
+	path = RFControl
 	url = https://github.com/pimatic/RFControl.git
