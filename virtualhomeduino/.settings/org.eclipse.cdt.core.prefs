@@ -1,6 +1,6 @@
 eclipse.preferences.version=1
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.338459557/PATH/delimiter=\:
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.338459557/PATH/operation=replace
-environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.338459557/PATH/value=/home/daan/rpi/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin\:/usr/local/bin\:/usr/bin\:/bin\:/usr/local/games\:/usr/games
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.338459557/PATH/value=$HOME/rpi/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin\:/usr/local/bin\:/usr/bin\:/bin\:/usr/local/games\:/usr/games
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.338459557/append=true
 environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.338459557/appendContributed=true
