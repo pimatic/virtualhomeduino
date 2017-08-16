@@ -19,3 +19,9 @@ Example configuration:
       "debug": true
     },
 
+
+Building:
+
+git clone https://github.com/WebWire-NL/virtualhomeduino.git
+edit build.sh and make sure $CROSS_BASE is set to the right location of the raspberry PI toolchain
+run ./build.sh
