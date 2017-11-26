@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include "../../pigpio/pigpio.h"
+#include <pigpio.h>
 
 #define MAX_RECORDINGS 1024
 #define OUTPUT PI_OUTPUT
