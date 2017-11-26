@@ -44,7 +44,7 @@ all: virtualhomeduino
 virtualhomeduino: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross G++ Linker'
-	arm-linux-gnueabihf-g++ -o vhduino $(OBJS) $(USER_OBJS) $(LIBS)
+	$(CROSS_PREFIX)g++ -L${PIGPIO_SRC} -o vhduino $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
