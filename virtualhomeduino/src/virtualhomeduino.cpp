@@ -244,7 +244,6 @@ int main(void) {
 		input[strlen(input)-1] = '\0'; //remove tailing new line
 		//printf("input=\"%s\"", input);
 		FILE *pFile;
-		char buffer[256];
 
 		pFile=fopen("/tmp/cmd.txt", "a+");
 		if(pFile==NULL) {
