@@ -1,3 +1,0 @@
-[submodule "rfcontrol"]
-	path = RFControl
-	url = https://github.com/pimatic/RFControl.git

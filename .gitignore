@@ -1,2 +1,6 @@
 pigpio
 tools
+RFControl
+
+*.o
+vhduino
