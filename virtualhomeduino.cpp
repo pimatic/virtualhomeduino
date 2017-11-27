@@ -15,7 +15,7 @@
 #include <signal.h>
 #include <string.h>
 #include "pigpio_functions.h"
-#include "../../RFControl/RFControl.h"
+#include "RFControl/RFControl.h"
 pthread_t pth;
 int sending=0;
 
