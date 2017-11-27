@@ -1,0 +1,10 @@
+
+For detailed build instructions please see README.md
+
+To cross compile on a linux box enter this command
+
+make
+
+To compile on a Raspberry Pi enter
+
+make -f Makefile.rpi
