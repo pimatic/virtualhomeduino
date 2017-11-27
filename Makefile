@@ -5,12 +5,12 @@
 
 WORKING_DIRECTORY = $(shell pwd)
 CROSS_PREFIX = $(WORKING_DIRECTORY)/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-
-PIGPIO_SRC = pigpio
+PIGPIO_SRC = $(WORKING_DIRECTORY)/pigpio
 CPP = $(CROSS_PREFIX)g++
 CFLAGS = -Wall -O3
 LDFLAGS = -lpthread -lpigpio -lrt
 
-# commits/versions/revisions to checkout for RFControl and pigpio
+# commit/version/revision to checkout for RFControl and pigpio
 RFCONTROL_COMMIT = 70413e8
 PIGPIO_COMMIT = 1aa4cca # pigpio V64
 
@@ -21,13 +21,14 @@ all: $(BINARY)
 
 $(BINARY): tools RFControl pigpio $(OBJS)
 	$(CPP) $(CFLAGS) -L${PIGPIO_SRC} -o $(BINARY) $(OBJS) $(LDFLAGS)
+	@echo Success! Done compiling $(BINARY).
 
 %.o: %.cpp
 	$(CPP) $(CFLAGS) -DRF_CONTROL_VARDUINO=1 -I $(PIGPIO_SRC) -c "$<"
 
 pigpio:
 	git clone https://github.com/joan2937/pigpio
-	cd pigpio; git checkout $(PIGPIO_COMMIT)
+	cd pigpio; git checkout -q $(PIGPIO_COMMIT)
 	sed -i "s/CROSS_PREFIX =//" ${PIGPIO_SRC}/Makefile
 	export CROSS_PREFIX=$(CROSS_PREFIX); make -C ${PIGPIO_SRC}
 
@@ -36,7 +37,7 @@ tools:
 
 RFControl:
 	git clone https://github.com/pimatic/RFControl.git
-	cd RFControl; git checkout $(RFCONTROL_COMMIT)
+	cd RFControl; git checkout -q $(RFCONTROL_COMMIT)
 
 clean:
 	rm -rf $(OBJS) $(BINARY) pigpio RFControl
