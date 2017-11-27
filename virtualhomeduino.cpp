@@ -243,14 +243,6 @@ int main(void) {
 		}
 		input[strlen(input)-1] = '\0'; //remove tailing new line
 		//printf("input=\"%s\"", input);
-		FILE *pFile;
-
-		pFile=fopen("/tmp/cmd.txt", "a+");
-		if(pFile==NULL) {
-		    perror("Error opening file.");
-		}
-		        fprintf(pFile, "%s", input);
-		fclose(pFile);
 
 			char* command = strtok(input, delimiter);
 			if(strcmp("PING", command) == 0) {
