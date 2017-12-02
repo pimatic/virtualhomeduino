@@ -75,15 +75,33 @@ Makefile.rpi compile steps:
 
 ## Runtime requirements
 
-* vhduino is dynamically linked
+* the vhduino binary is dynamically linked
 * assuming you want to run vhduino on Raspbian you need to install the pigpio package
 
 ```
 $ sudo apt-get install pigpio
 ```
 
+## Testing
+
+* build the project as described above
+* assuming you have the pimatic homeduino plugin installed
+* copy the vhduino binary to the plugin's directory on your Raspberry Pi, e.g.:
+
+```
+$ sudo cp vhduino /home/pi/pimatic-app/node_modules/pimatic-homeduino/node_modules/homeduino/bin/vhduino
+```
+
+* exact procedure would be:
+  * stop pimatic
+  * backup the old vhduino binary in the homeduino plugin directory
+  * copy the new vhduino binary to the homeduino plugin directory
+  * start pimatic
+
 ## TODO
 
-* Can cross compiling be achieved "easier"? 
+* Can cross compiling be achieved "easier"?
   * without cloning 190MB of Raspberry Pi tools repository
   * check https://hackaday.com/2016/02/03/code-craft-cross-compiling-for-the-raspberry-pi/
+* use autoconf/automake to generate configure file and Makefile
+* integrate Travis for continuous integration
