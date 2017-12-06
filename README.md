@@ -1,4 +1,4 @@
-# virtualhomeduino
+# virtualhomeduino [![Build Status](https://travis-ci.org/layereight/virtualhomeduino.svg?branch=master)](https://travis-ci.org/layereight/virtualhomeduino)
 
 quickly hacked together proof of concept stuff for virtualhomeduino
 
@@ -104,4 +104,3 @@ $ sudo cp vhduino /home/pi/pimatic-app/node_modules/pimatic-homeduino/node_modul
   * without cloning 190MB of Raspberry Pi tools repository
   * check https://hackaday.com/2016/02/03/code-craft-cross-compiling-for-the-raspberry-pi/
 * use autoconf/automake to generate configure file and Makefile
-* integrate Travis for continuous integration
