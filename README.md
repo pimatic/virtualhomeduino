@@ -97,6 +97,8 @@ $ sudo cp vhduino /home/pi/pimatic-app/node_modules/pimatic-homeduino/node_modul
   * backup the old vhduino binary in the homeduino plugin directory
   * copy the new vhduino binary to the homeduino plugin directory
   * start pimatic
+  * adapt receiverPin and transmitterPin configuration in homeduino plugin (pin numbering changed from wiringpi to pigpio)
+  * restart pimatic
 
 ## TODO
 
