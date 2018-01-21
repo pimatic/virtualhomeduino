@@ -106,3 +106,8 @@ $ sudo cp vhduino /home/pi/pimatic-app/node_modules/pimatic-homeduino/node_modul
   * without cloning 190MB of Raspberry Pi tools repository
   * check https://hackaday.com/2016/02/03/code-craft-cross-compiling-for-the-raspberry-pi/
 * use autoconf/automake to generate configure file and Makefile
+
+## Contributors
+
+* [WebWire-NL](https://github.com/WebWire-NL): migrating the whole project to pigpio making it compatible with newer kernels(>=4.9.x)
+* [layereight](https://github.com/layereight): improving the project's build process
