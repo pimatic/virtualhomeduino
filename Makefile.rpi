@@ -1,0 +1,32 @@
+
+#
+# Makefile compiling vhduino on a raspberry pi
+#
+
+CPP = g++
+CFLAGS = -Wall -O3
+LDFLAGS = -lpthread -lpigpio -lrt
+
+# commit/version/revision to checkout for RFControl
+RFCONTROL_COMMIT = 70413e8
+
+OBJS = pigpio_functions.o pigpio_rfcontrol.o virtualhomeduino.o
+BINARY = vhduino
+
+all: $(BINARY)
+
+$(BINARY): RFControl $(OBJS)
+	$(CPP) $(CFLAGS) -o $(BINARY) $(OBJS) $(LDFLAGS)
+	@echo Success! Done compiling $(BINARY).
+
+%.o: %.cpp
+	$(CPP) $(CFLAGS) -DRF_CONTROL_VARDUINO=1 -c "$<"
+
+RFControl:
+	git clone https://github.com/pimatic/RFControl.git
+	cd RFControl; git checkout -q $(RFCONTROL_COMMIT)
+
+clean:
+	rm -rf $(OBJS) $(BINARY) RFControl
+
+.PHONY: all clean
