@@ -20,7 +20,11 @@ static inline int hw_getInterruptPin() {
 
 static inline void hw_callInterrupt(uint32_t tick) {
 		_lastmic = tick;
-		_hw_interruptCallback();
+		/* Avoid calling NULL pointer because gpioSetAlertFunc()
+		 * is called in rfcontrol_command_receive() before this
+		 * callback gets assigned by hw_attachInterrupt()
+		 * in RFControl::startReceiving() */
+		if(_hw_interruptCallback) _hw_interruptCallback();
 }
 
 
